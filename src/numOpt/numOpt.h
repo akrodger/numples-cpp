@@ -27,6 +27,7 @@ namespace numples{
 //data and a custom implementation of the evaluation operator ().
 class Objective{
 private:
+public:
 	//A small positive number. If the norm of the Objective's gradient
 	//is small than this number, the gradient is treated as being zero.
 	double epsi;
@@ -41,7 +42,6 @@ private:
 	//A matrix for storing the gradient in the cases where is has already
 	//been computed. (such as with a call to grad)
 	Matrix gradMatrix;
-public:
 	//Default constructor sets epsi to machine accuracy, val=0, x to zero.
 	Objective();
 	//A constructor which allows you to set epsi
@@ -77,7 +77,7 @@ public:
 	//stating that the gradient is stored will be set to 1.
 	//if that flag is 1, return the stored grad. Otherwise compute the
 	//grad, store it, set flag to 1, and return.
-	virtual Matrix grad();
+	virtual Matrix& grad();
 	//under construction:
 		//We give a default numerical approximation of hessian
 		//at a point x times a vector p.
@@ -142,7 +142,15 @@ Matrix doglegStep(	const Matrix& gradAppx,
 
 /*
  *	The BFGS quasi-newton optimization algorithm using wolfe conditions line
- *	search.
+ *	search. Return value is number of iterations.
+ *
+ *	Stop Signal Manual:
+ *	 Value  |         Meaning
+ * ----------------------------------------------------------------------------
+ *   -1     |  Hessian Not Invertible
+ *    0     |  Successful Exit.
+ *    1     |  Wolfe Line Search Failure, search direction gives no decrease.
+ *    2     |  Wolfe Line Search Failure, search interval converges to 0 width.
  */
 lapack_int bfgsLineSearch(	Objective& J,
 							double c1,
@@ -153,6 +161,14 @@ lapack_int bfgsLineSearch(	Objective& J,
 /*
  *	The limited memory version of  BFGS quasi-newton optimization algorithm
  *	using wolfe conditions line search.
+ *	
+ *	Stop Signal Manual:
+ *	 Value  |         Meaning
+ * ----------------------------------------------------------------------------
+ *   -1     |  Hessian Not Invertible
+ *    0     |  Successful Exit.
+ *    1     |  Wolfe Line Search Failure, search direction gives no decrease.
+ *    2     |  Wolfe Line Search Failure, search interval converges to 0 width.
  */
 lapack_int bfgsLimitedMem(	Objective& J,
 							double c1,

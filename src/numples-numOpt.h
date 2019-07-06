@@ -14,5 +14,6 @@
  * Macros and Includes go here.
  */
 #include"numOpt/numOpt.h"
+#include"numOpt/rootFind.h"
 
 #endif

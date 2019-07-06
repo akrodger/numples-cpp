@@ -97,29 +97,26 @@ double Objective::operator()(const Matrix& y){
 	return y.dot(y);
 }
 
-Matrix Objective::grad(){
+Matrix& Objective::grad(){
 	lapack_int k = 0;
 	lapack_int vecLen = this->x.getNumComponents();
 	double perturb = 1.053671212772351e-08;
 	//perturb is square root of epsi_mech, quasi optimal size
 	double xHoldVal = 0;//holds unperturbed value of x in loop
-	Matrix g;// = Matrix(this->x.getNumRows(), this->x.getNumCols());
-	if(this->gradAvailable == 0){
-		g = Matrix(this->x.getNumRows(), this->x.getNumCols());
-		for(k = 0; k < vecLen; k++){
-			xHoldVal = this->x(k);//hold onto value of x
-			this->x(k) = this->x(k) + perturb;//perturb in direction k
-			//get the value of the gradient in direction k
-			g(k) = this->operator()(this->x);
-			g(k) = (g(k) - this->getValue())/perturb;
-			this->x(k) = xHoldVal;//return x to unperturbed value
-		}
-		this->gradAvailable = 1;
-		this->gradMatrix = g;
-	}else{
+	if(this->gradAvailable != 0){
 		return this->gradMatrix;
 	}
-	return g;
+	this->gradMatrix = Matrix(this->x.getNumRows(), this->x.getNumCols());
+	for(k = 0; k < vecLen; k++){
+		xHoldVal = this->x(k);//hold onto value of x
+		this->x(k) = this->x(k) + perturb;//perturb in direction k
+		//get the value of the gradient in direction k
+		this->gradMatrix(k) = this->operator()(this->x);
+		this->gradMatrix(k) = (this->gradMatrix(k) - this->getValue())/perturb;
+		this->x(k) = xHoldVal;//return x to unperturbed value
+	}
+	this->gradAvailable = 1;
+	return this->gradMatrix;
 }
 
 //Matrix Objective::hessTimes(const Matrix& p){
@@ -201,7 +198,7 @@ Matrix wolfeLineSearch(	Objective& J,
 	Matrix currPoint;
 	while(1){
 		//Do an update of objective along search direction
-		currPoint = J.getArg() + (searchDirect*alpha_k);
+		currPoint = J.x + (searchDirect*alpha_k);
 		phi_k = J(currPoint);
 		//If the sufficient decrease is satisfied or this iteration
 		//gave an increase in the objective, then we know a strong
@@ -221,7 +218,7 @@ Matrix wolfeLineSearch(	Objective& J,
 			break;
 		}
 		//Do an update of the directional derivative of the objective
-		phiPrime_k = J(J.getArg() + (searchDirect*(alpha_k + perturb)));
+		phiPrime_k = J(J.x + (searchDirect*(alpha_k + perturb)));
 		phiPrime_k = (phiPrime_k - phi_k)/perturb;
 		//if the curvature condition is satisfied, then then we can pick'
 		//this iterate as our next optimizer point. so break.
@@ -271,7 +268,7 @@ Matrix wolfeLineSearch(	Objective& J,
 		}
 		stopSignal = 0;//if nothing is wrong, then we can keep optimizing
 	}
-	currPoint = J.getArg() + (searchDirect*alphaStar);
+	currPoint = J.x + (searchDirect*alphaStar);
 	return currPoint;
 }
 
@@ -296,11 +293,11 @@ double wolfeZoom(	Objective& J,
 		if(fabs(alphaHi - alphaLo) > perturb){
 			alpha_j = (alphaLo + alphaHi)*0.5;
 		}else{//if it is not, then halt.
-			stopSignal = 1;
+			stopSignal = 2;
 			return (alphaLo + alphaHi)*0.5;
 		}
 		//Update objective along search direction.
-		currPoint = J.getArg() + searchDirect*alpha_j;
+		currPoint = J.x + searchDirect*alpha_j;
 		phi_j = J(currPoint);
 		//By constriction, alphaLo satisfies sufficient decrease.
 		//check to see if holds for phi_j or if phi_j is large enough
@@ -312,7 +309,7 @@ double wolfeZoom(	Objective& J,
 			phiHi = phi_j;
 		}else{//If it does not, then modify points using curvature condition
 			//first update the directional derivative
-			phiPrime_j = J(J.getArg() + (searchDirect*(alpha_j + perturb)));
+			phiPrime_j = J(J.x + (searchDirect*(alpha_j + perturb)));
 			phiPrime_j = (phiPrime_j - phi_j)/perturb;
 			//check if the curvature condition holds. if it does, we're done
 			if(fabs(phiPrime_j) <= -c2*phiPrimeZero){
@@ -343,7 +340,7 @@ lapack_int bfgsLineSearch(	Objective& J,
 	double iAngle = 0;
 	lapack_int i = 0, j = 0, numIter= 0, probDim = 0, setIndex = 0;
 	Matrix xNew;
-	Matrix xOld = J.getArg();
+	Matrix xOld = J.x;
 	Matrix newGrad;
 	Matrix oldGrad = J.grad();
 	Matrix search = Matrix(xOld.getNumRows(), xOld.getNumCols());
@@ -388,6 +385,11 @@ lapack_int bfgsLineSearch(	Objective& J,
 		secant = xNew - xOld;//change in position this iterate
 		gradDif = newGrad - oldGrad;//change in direction this iterate
 		iAngle = 1/secant.dot(gradDif);//angle between changes
+		if(fabs(iAngle) < 1e-16){//check if inverse hessian exists.
+			stopSignal = -1;
+			numIter++;
+			break;
+		}
 		//Use the xOld vector to temporarily hold curvature data
 		cblas_dspmv(CblasColMajor, CblasUpper,
                  probDim, iAngle, &(appxHessInv[0]),
@@ -437,7 +439,7 @@ lapack_int bfgsLimitedMem(	Objective& J,
 	double betaProj = 1;//projection for second loop of hessian mult
 	lapack_int histSize = 0, j = 0, numIter= 0;
 	Matrix xNew;
-	Matrix xOld = J.getArg();
+	Matrix xOld = J.x;
 	Matrix newGrad;
 	Matrix oldGrad = J.grad();
 	Matrix search;
@@ -495,7 +497,13 @@ lapack_int bfgsLimitedMem(	Objective& J,
 		secantHist.push_back(xNew - xOld);
 		gradieHist.push_back(newGrad - oldGrad);
 		j = ((lapack_int) secantHist.size()) - 1;
-		iAngleHist.push_back(1 / (secantHist[j].dot(gradieHist[j])));
+		lipschitz = secantHist[j].dot(gradieHist[j]);
+		if(fabs(lipschitz) < 1e-16){//check if inverse hessian exists.
+			stopSignal = -1;
+			numIter++;
+			break;
+		}
+		iAngleHist.push_back(1 / lipschitz);
 		//update iterates and continue to next loop
 		xOld = xNew;
 		oldGrad = newGrad;

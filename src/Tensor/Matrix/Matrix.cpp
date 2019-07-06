@@ -420,7 +420,7 @@ double Matrix::dot(const Matrix& x) const{
 	return cblas_ddot(N, &(this->components[0]), 1, &(x.components[0]), 1);
 }
 
-double Matrix::norm2() const{	
+double Matrix::norm2() const{
 	int N = (int) this->getNumComponents();
 	return cblas_dnrm2(N, &(this->components[0]), 1);
 }
