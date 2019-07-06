@@ -120,13 +120,13 @@ lapack_int broydenLineSearch(	Residual& J,
                 &(qk.components[0]),
                 1,
                 &(appxJacInv.components[0]), probDim);
-		//Done updating inverse jacobian.
-		//update iterates and continue to next loop
-		xOld = xNew;
-		oldResid = newResid;
-		numIter++;
+    //Done updating inverse jacobian.
+    //update iterates and continue to next loop
+    xOld = xNew;
+    oldResid = newResid;
+    numIter++;
   }
-	return numIter;
+  return numIter;
 }
 
 };//end namespace numples
