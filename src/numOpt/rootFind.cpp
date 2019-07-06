@@ -54,7 +54,7 @@ lapack_int broydenLineSearch(	Residual& J,
                               double alphaMax,
                               int& stopSignal){
   double iAngle = 0;
-  lapack_int i = 0, j = 0, numIter= 0, probDim = 0, setIndex = 0;
+  lapack_int numIter= 0, probDim = 0;
   Matrix xNew;
   Matrix xOld = J.x;
   Matrix newResid;
@@ -70,7 +70,7 @@ lapack_int broydenLineSearch(	Residual& J,
   appxJacInv = Matrix(probDim, probDim, 'I');
   while(1){
     search = appxJacInv*(oldResid*(-1.0));
-    xNew = wolfeLineSearch(	J,//Objective& J,
+    xNew = wolfeLineSearch( J,//Objective& J,
                             search,//const Matrix& searchDirect,
                             c1,//double c1,
                             c2,//double c2,

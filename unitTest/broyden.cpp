@@ -52,7 +52,6 @@ int main(int argc, char** argv){
   // Variable Declarations:
   // int, double, etc
   // Pre Built argv parsing: (argv[0] is executable title. e.g. "./a.out")
-  char* pEnd = NULL; //Points to end of a parsed string
   /*
    * (intger) = atoi(argv[index]);
    * (double) = strtod(argv[index], &pEnd);
